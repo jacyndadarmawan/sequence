@@ -1,0 +1,35 @@
+Create a modern, minimal, Scandinavian‑inspired web application called Sequence, designed as a Notion‑style planning tool for mat and reformer Pilates instructors. The interface should feel calm, clean, and modular, with soft neutral colors, generous spacing, and block‑based layouts. Core functionality includes: a customizable exercise library with light metadata only (name, category, equipment, purpose, tags, notes, position, springs, and footbar settings), a drag‑and‑drop sequence builder using stackable blocks, reusable templates, a weekly class planner with drag‑to‑schedule interactions, global search, and class history with notes. This is strictly a planning and organization tool — no videos, no cueing content, no instructional library. Future development will include premium features such as cycle‑aware planning overlays, advanced filtering, smart suggestions based on past classes, and expanded export options. The overall experience should feel intuitive, flexible, helping instructors plan faster, stay organized, and reduce cognitive load.
+Main app user is solo instructors, but in the future I want a possibility to add multiple user for collaboration.
+
+A 'block' is a set of exercises you can build. Users should be able to build a block for example a core block. Inside core block, are the exercises roll up and leg circles. A sequence is made of blocks (e.g. "Core Block", "Warm-Up Block")
+Each block has a name and contains a list of exercises. The exercises within a block should be able to be re-ordered.
+
+Plan
+
+Intent & Goal
+
+Sequence is a Notion-style planning tool for solo Pilates instructors. It helps instructors build and organize their exercise library, construct drag-and-drop class sequences, save reusable templates, and log class history with notes — all in one calm, minimal interface. The goal is to reduce cognitive load, speed up planning, and create a seamless planning experience.
+
+Audience & Roles
+
+Primary user: Solo Pilates instructor (single authenticated user). The data model and architecture should be designed to support future multi-user/studio collaboration as a premium tier, but v1 is single-user only. No client-facing views in v1.
+
+Core Flows
+
+These flows must work end-to-end:
+
+Instructor opens Exercise Library → creates/edits exercises with metadata (name, category, equipment, purpose, tags, notes, position) → browses and filters exercises by category, equipment, or tag
+
+Instructor opens Sequence Builder → creates a new sequence → searches and adds exercises as drag-and-drop stackable blocks → reorders blocks → names the sequence → saves it. When an exercise does not yet exist in the library, users should be able to Create & Add and handle the quick exercise creation inline. The new exercise should then be saved to the library and immediately added to the block.
+
+Instructor saves a sequence as a reusable Template → later loads a template to quickly start a new sequence from it. User should also be able to duplicate a sequence.
+
+Instructor logs a completed class → links it to a sequence → adds post-class notes → views class history in a chronological log with notes and the sequence used
+
+Technical Requirements
+
+Use @hello-pangea/dnd for drag-and-drop in the sequence builder. Global search across exercises and sequences. Data persisted via Base44 backend entities: Exercise, Sequence, SequenceBlock, Template, ClassLog. Architecture should be clean enough to later add a Studio/User relationship layer for multi-instructor premium tier.
+
+Design Preferences
+
+Nordic Minimal aesthetic: off-white #F8F6F2 background, warm sand #E8E0D5 cards, deep charcoal #2C2C2C type. Generous whitespace, fine 1px borders, serif headings (Playfair Display), small sans body (Inter). Calm, airy, ritual-like. Block-based modular layouts. Soft neutral color-coded tags. No dark mode required in v1.

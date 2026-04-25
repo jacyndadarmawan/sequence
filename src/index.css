@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-bg text-ink font-sans antialiased;
+    font-feature-settings: 'ss01', 'cv11';
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-serif text-ink;
+    letter-spacing: -0.01em;
+  }
+  ::selection {
+    background: #e8e0d5;
+    color: #2c2c2c;
+  }
+  /* Subtle scrollbar */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(44, 44, 44, 0.12);
+    border-radius: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-card border border-line rounded-xl2 shadow-soft;
+  }
+  .chip {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border border-line bg-card text-ink/80 transition;
+  }
+  .chip-active {
+    @apply bg-ink text-bg border-ink;
+  }
+  .chip-soft {
+    @apply bg-sandsoft text-ink/70 border-transparent;
+  }
+  .btn {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition;
+  }
+  .btn-primary {
+    @apply btn bg-ink text-bg hover:bg-ink/90;
+  }
+  .btn-ghost {
+    @apply btn bg-transparent text-ink/80 hover:bg-sandsoft;
+  }
+  .btn-outline {
+    @apply btn bg-card text-ink border border-line hover:bg-sandsoft/50;
+  }
+  .input {
+    @apply w-full bg-card border border-line rounded-xl2 px-4 py-3 text-sm placeholder:text-ink/40 focus:outline-none focus:border-ink/30;
+  }
+  .input-bare {
+    @apply w-full bg-transparent border-none focus:outline-none placeholder:text-ink/30;
+  }
+  .label {
+    @apply text-[11px] uppercase tracking-[0.14em] text-ink/50 font-medium;
+  }
+  .tag {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium;
+  }
+  .divider {
+    @apply h-px w-full bg-line;
+  }
+  .nav-pill {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm text-ink/70 hover:text-ink transition;
+  }
+  .nav-pill-active {
+    @apply bg-ink text-bg hover:text-bg;
+  }
+  .serif-display {
+    @apply font-serif text-[2.5rem] leading-[1.05] tracking-tight;
+  }
+  .empty-dashed {
+    @apply border border-dashed border-line/80 rounded-xl2 bg-bg/40;
+  }
+}
+
+/* Drag overlay */
+.dnd-ghost {
+  opacity: 0.4;
+}
+.dnd-overlay {
+  @apply card px-4 py-3 shadow-lg cursor-grabbing;
+}
