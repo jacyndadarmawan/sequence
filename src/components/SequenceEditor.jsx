@@ -418,40 +418,44 @@ function ItemRow({ item, seqId, blockId }) {
         >
           <GripVertical size={14} />
         </button>
-        <div
-          className="flex-1 text-sm truncate cursor-pointer"
-          onClick={() => setExpanded((v) => !v)}
-        >
-          {exercise?.name || <span className="text-ink/40 italic">Removed exercise</span>}
+        <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2">
+          <div
+            className="flex-1 min-w-0 text-sm truncate cursor-pointer"
+            onClick={() => setExpanded((v) => !v)}
+          >
+            {exercise?.name || <span className="text-ink/40 italic">Removed exercise</span>}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <input
+              type="number"
+              min={1}
+              value={item.sets}
+              onChange={(e) => updateItem(seqId, blockId, item.id, { sets: Number(e.target.value || 1) })}
+              className="w-8 text-right text-xs bg-transparent focus:outline-none text-ink/60"
+              title="Sets"
+            />
+            <span className="text-xs text-ink/40">×</span>
+            <input
+              value={item.reps}
+              onChange={(e) => updateItem(seqId, blockId, item.id, { reps: e.target.value })}
+              className="w-16 text-xs bg-transparent focus:outline-none text-ink/60"
+              placeholder="reps"
+            />
+            <button
+              onClick={() => setExpanded((v) => !v)}
+              className="text-ink/30 hover:text-ink/70 transition"
+              title="More details"
+            >
+              <ChevronRight size={13} className={classNames('transition', expanded ? 'rotate-90' : '')} />
+            </button>
+            <button
+              onClick={() => removeItem(seqId, blockId, item.id)}
+              className="opacity-0 group-hover:opacity-100 text-ink/40 hover:text-mauve-ink"
+            >
+              <X size={14} />
+            </button>
+          </div>
         </div>
-        <input
-          type="number"
-          min={1}
-          value={item.sets}
-          onChange={(e) => updateItem(seqId, blockId, item.id, { sets: Number(e.target.value || 1) })}
-          className="w-10 text-right text-xs bg-transparent focus:outline-none text-ink/60"
-          title="Sets"
-        />
-        <span className="text-xs text-ink/40">×</span>
-        <input
-          value={item.reps}
-          onChange={(e) => updateItem(seqId, blockId, item.id, { reps: e.target.value })}
-          className="w-20 text-xs bg-transparent focus:outline-none text-ink/60"
-          placeholder="reps"
-        />
-        <button
-          onClick={() => setExpanded((v) => !v)}
-          className="text-ink/30 hover:text-ink/70 transition"
-          title="More details"
-        >
-          <ChevronRight size={13} className={classNames('transition', expanded ? 'rotate-90' : '')} />
-        </button>
-        <button
-          onClick={() => removeItem(seqId, blockId, item.id)}
-          className="opacity-0 group-hover:opacity-100 text-ink/40 hover:text-mauve-ink"
-        >
-          <X size={14} />
-        </button>
       </div>
 
       {/* Expanded detail panel */}
