@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { classNames } from '../utils/file.js';
 import {
-  DndContext, PointerSensor, useSensor, useSensors, closestCenter,
+  DndContext, DragOverlay, PointerSensor, useSensor, useSensors, closestCenter,
 } from '@dnd-kit/core';
 import {
   SortableContext, useSortable, arrayMove, verticalListSortingStrategy,
@@ -17,6 +17,7 @@ import ExerciseModal from './ExerciseModal.jsx';
 
 export default function SequenceEditor({ sequenceId, setView }) {
   const seq = useStore((s) => s.sequences.find((q) => q.id === sequenceId));
+  const exercises = useStore((s) => s.exercises);
   const update = useStore((s) => s.updateSequence);
   const addBlock = useStore((s) => s.addBlockToSequence);
   const reorderBlocks = useStore((s) => s.reorderBlocks);
@@ -25,6 +26,7 @@ export default function SequenceEditor({ sequenceId, setView }) {
 
   const [activeBlockId, setActiveBlockId] = useState(null);
   const [exModal, setExModal] = useState({ open: false, initialName: '' });
+  const [draggingId, setDraggingId] = useState(null);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
@@ -44,8 +46,12 @@ export default function SequenceEditor({ sequenceId, setView }) {
     setActiveBlockId(newId);
   };
 
+  const handleDragStart = ({ active }) => setDraggingId(active.id);
+  const handleDragCancel = () => setDraggingId(null);
+
   // Single DndContext handles both block reorder and item move (including cross-block)
   const handleDragEnd = ({ active, over }) => {
+    setDraggingId(null);
     if (!over || active.id === over.id) return;
     const activeId = active.id;
     const overId = over.id;
@@ -172,7 +178,13 @@ export default function SequenceEditor({ sequenceId, setView }) {
               </button>
             </div>
           ) : (
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              onDragCancel={handleDragCancel}
+            >
               <SortableContext items={seq.blocks.map((b) => b.id)} strategy={verticalListSortingStrategy}>
                 <div className="space-y-5">
                   {seq.blocks.map((b) => (
@@ -182,10 +194,22 @@ export default function SequenceEditor({ sequenceId, setView }) {
                       seqId={seq.id}
                       activeBlockId={activeBlockId}
                       setActiveBlockId={setActiveBlockId}
+                      draggingId={draggingId}
                     />
                   ))}
                 </div>
               </SortableContext>
+              <DragOverlay dropAnimation={null}>
+                {draggingId
+                  ? (() => {
+                      const dragBlock = seq.blocks.find((b) => b.id === draggingId);
+                      if (dragBlock) return <BlockDragPreview block={dragBlock} />;
+                      const dragItem = seq.blocks.flatMap((b) => b.items).find((i) => i.id === draggingId);
+                      if (dragItem) return <ItemDragPreview item={dragItem} exercises={exercises} />;
+                      return null;
+                    })()
+                  : null}
+              </DragOverlay>
             </DndContext>
           )}
 
@@ -279,7 +303,7 @@ function Toggle({ checked, onChange }) {
   );
 }
 
-function BlockRow({ block, seqId, activeBlockId, setActiveBlockId }) {
+function BlockRow({ block, seqId, activeBlockId, setActiveBlockId, draggingId }) {
   const updateBlock = useStore((s) => s.updateBlock);
   const deleteBlock = useStore((s) => s.deleteBlock);
   const addTextToBlock = useStore((s) => s.addTextToBlock);
@@ -290,6 +314,7 @@ function BlockRow({ block, seqId, activeBlockId, setActiveBlockId }) {
   const style = { transform: CSS.Translate.toString(sortable.transform), transition: sortable.transition };
 
   const exerciseCount = block.items.filter((i) => !i.type || i.type === 'exercise').length;
+  const isBeingDragged = draggingId === block.id;
 
   return (
     <div
@@ -298,7 +323,8 @@ function BlockRow({ block, seqId, activeBlockId, setActiveBlockId }) {
       onClick={() => setActiveBlockId(block.id)}
       className={classNames(
         'card p-5 transition cursor-pointer',
-        isActive ? 'ring-1 ring-ink/15' : ''
+        isActive ? 'ring-1 ring-ink/15' : '',
+        isBeingDragged ? 'opacity-0' : ''
       )}
     >
       <div className="flex items-center gap-3">
@@ -375,7 +401,10 @@ function ItemRow({ item, seqId, blockId }) {
     <li
       ref={sortable.setNodeRef}
       style={style}
-      className="group bg-bg/40 hover:bg-sandsoft/40 rounded-xl2 border border-transparent hover:border-line"
+      className={classNames(
+        'group bg-bg/40 hover:bg-sandsoft/40 rounded-xl2 border border-transparent hover:border-line',
+        sortable.isDragging ? 'opacity-0' : ''
+      )}
     >
       {/* Compact row */}
       <div className="flex items-center gap-2 px-3 py-2">
@@ -480,7 +509,10 @@ function TextItemRow({ item, seqId, blockId }) {
     <li
       ref={sortable.setNodeRef}
       style={style}
-      className="group flex items-start gap-2 bg-wheat/20 rounded-xl2 px-3 py-2 border border-wheat/50"
+      className={classNames(
+        'group flex items-start gap-2 bg-wheat/20 rounded-xl2 px-3 py-2 border border-wheat/50',
+        sortable.isDragging ? 'opacity-0' : ''
+      )}
     >
       <button
         {...sortable.attributes}
@@ -597,6 +629,39 @@ function LibraryPicker({ seqId, activeBlockId, onCreateInline }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function BlockDragPreview({ block }) {
+  const exerciseCount = block.items.filter((i) => !i.type || i.type === 'exercise').length;
+  return (
+    <div className="card p-5 shadow-xl opacity-95 cursor-grabbing">
+      <div className="flex items-center gap-3">
+        <GripVertical size={16} className="text-ink/35" />
+        <span className="font-serif text-lg flex-1">{block.name}</span>
+        <span className="text-xs text-ink/50">{exerciseCount} exercise{exerciseCount === 1 ? '' : 's'}</span>
+      </div>
+    </div>
+  );
+}
+
+function ItemDragPreview({ item, exercises }) {
+  const exercise = exercises.find((e) => e.id === item.exerciseId);
+  if (item.type === 'text') {
+    return (
+      <div className="flex items-start gap-2 bg-wheat/20 rounded-xl2 px-3 py-2 border border-wheat/50 shadow-xl opacity-95 cursor-grabbing">
+        <GripVertical size={14} className="text-ink/30 shrink-0 mt-0.5" />
+        <FileText size={13} className="text-ink/35 shrink-0 mt-0.5" />
+        <span className="text-sm text-ink/60 truncate">{item.content || 'Note'}</span>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 bg-bg/40 rounded-xl2 border border-line shadow-xl opacity-95 cursor-grabbing">
+      <GripVertical size={14} className="text-ink/30 shrink-0" />
+      <span className="flex-1 text-sm truncate">{exercise?.name || 'Exercise'}</span>
+      <span className="text-xs text-ink/40">{item.sets} × {item.reps}</span>
     </div>
   );
 }
