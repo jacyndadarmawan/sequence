@@ -220,6 +220,7 @@ export const DIFFICULTIES = ['Beginner', 'Intermediate', 'Advanced'];
 export const EQUIPMENT = ['Mat', 'Reformer', 'Cadillac', 'Barrel', 'Chair', 'Ring', 'Ball', 'Band', 'None'];
 export const SPRING_OPTIONS = ['—', '1 blue', '1 red', '2 red', '3 red', '1 yellow', '2 yellow', 'mixed'];
 export const FOOTBAR_OPTIONS = ['—', 'flat', 'low', 'medium', 'high'];
+export const SIDES_OPTIONS = ['Both', 'Left', 'Right', 'Alternating'];
 
 export const CATEGORY_COLOR = {
   'Warm-Up': { bg: 'bg-peach', text: 'text-peach-ink' },

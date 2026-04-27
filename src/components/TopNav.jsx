@@ -36,8 +36,9 @@ export default function TopNav({ view, setView, openSearch }) {
     setView({ name: 'editor', id: seq.id });
   };
 
-  const item = (name, label, Icon) => (
+  const navItem = (name, label, Icon) => (
     <button
+      key={name}
       onClick={() => setView({ name })}
       className={classNames(
         'nav-pill',
@@ -46,27 +47,31 @@ export default function TopNav({ view, setView, openSearch }) {
           : ''
       )}
     >
-      <Icon size={16} /> {label}
+      <Icon size={16} />
+      <span className="hidden sm:inline">{label}</span>
     </button>
   );
 
   return (
     <header className="sticky top-0 z-30 bg-bg/80 backdrop-blur border-b border-line">
-      <div className="max-w-[1400px] mx-auto px-8 h-16 flex items-center justify-between gap-6">
-        <button onClick={goLanding} className="flex items-center gap-3 group">
+      <div className="max-w-[1400px] mx-auto px-4 md:px-8 h-16 grid grid-cols-[auto_1fr_auto] items-center gap-2 md:gap-6">
+        {/* Logo */}
+        <button onClick={goLanding} className="flex items-center gap-2 md:gap-3 group shrink-0">
           <div className="w-9 h-9 rounded-full bg-ink text-bg flex items-center justify-center font-serif italic">
             s
           </div>
-          <span className="font-serif text-xl group-hover:opacity-80">Sequence</span>
+          <span className="font-serif text-xl group-hover:opacity-80 hidden md:inline">Sequence</span>
         </button>
 
-        <nav className="flex items-center gap-1 absolute left-1/2 -translate-x-1/2">
-          {item('library', 'Library', BookOpen)}
-          {item('sequences', 'Sequences', Layers)}
-          {item('history', 'History', Clock)}
+        {/* Nav — centered */}
+        <nav className="flex items-center justify-center gap-1 overflow-x-auto">
+          {navItem('library', 'Library', BookOpen)}
+          {navItem('sequences', 'Sequences', Layers)}
+          {navItem('history', 'History', Clock)}
         </nav>
 
-        <div className="flex items-center gap-2">
+        {/* Actions */}
+        <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={openSearch}
             className="p-2 rounded-full hover:bg-sandsoft text-ink/60 hover:text-ink transition"
@@ -76,24 +81,27 @@ export default function TopNav({ view, setView, openSearch }) {
           </button>
           <button
             onClick={onSave}
-            className="btn-ghost relative"
+            className="btn-ghost relative px-2 md:px-3"
             title={isDirty ? 'You have unsaved changes — save now' : 'Save session to file'}
           >
-            <Save size={16} /> Save
+            <Save size={16} />
+            <span className="hidden lg:inline">Save</span>
             {isDirty && (
               <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-mauve-ink" />
             )}
           </button>
           <button
             onClick={() => fileRef.current?.click()}
-            className="btn-ghost"
+            className="btn-ghost px-2 md:px-3"
             title="Load session from file"
           >
-            <FolderOpen size={16} /> Load
+            <FolderOpen size={16} />
+            <span className="hidden lg:inline">Load</span>
           </button>
           <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={onLoad} />
-          <button onClick={onNewSequence} className="btn-primary">
-            <Plus size={16} /> New Sequence
+          <button onClick={onNewSequence} className="btn-primary px-2 md:px-3">
+            <Plus size={16} />
+            <span className="hidden sm:inline">New Sequence</span>
           </button>
         </div>
       </div>

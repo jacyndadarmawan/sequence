@@ -4,7 +4,7 @@ import { Plus, Search, Star, ChevronDown, Layers, Clock, Trash2 } from 'lucide-r
 import { classNames } from '../utils/file.js';
 import LogClassModal from './LogClassModal.jsx';
 
-export default function History({ setView }) {
+export default function History({ setView, expandHistoryId }) {
   const history = useStore((s) => s.history);
   const sequences = useStore((s) => s.sequences);
   const exercises = useStore((s) => s.exercises);
@@ -12,7 +12,15 @@ export default function History({ setView }) {
 
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false);
-  const [expanded, setExpanded] = useState(null);
+  const [expanded, setExpanded] = useState(expandHistoryId || null);
+
+  // Scroll the expanded entry into view when arriving from search
+  React.useEffect(() => {
+    if (!expandHistoryId) return;
+    setExpanded(expandHistoryId);
+    const el = document.getElementById(`history-${expandHistoryId}`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [expandHistoryId]);
 
   const filtered = useMemo(() => {
     return history
@@ -78,7 +86,7 @@ export default function History({ setView }) {
                 const seq = sequenceById(h.sequenceId);
                 const isOpen = expanded === h.id;
                 return (
-                  <div key={h.id} className="card group">
+                  <div key={h.id} id={`history-${h.id}`} className="card group">
                     <div className="flex items-center px-5 py-4 gap-5">
                       <div className="text-center w-12 shrink-0 border-r border-line pr-5">
                         <div className="font-serif text-2xl leading-none">{new Date(h.date).getDate()}</div>

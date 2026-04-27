@@ -91,10 +91,10 @@ export default function App() {
       <TopNav view={view} setView={setView} openSearch={() => setSearchOpen(true)} />
       <main className="flex-1 max-w-[1400px] w-full mx-auto px-8 py-10">
         {view.name === 'landing' && <Landing setView={setView} />}
-        {view.name === 'library' && <Library setView={setView} initialTab={view.tab} />}
+        {view.name === 'library' && <Library setView={setView} initialTab={view.tab} editExerciseId={view.editExerciseId} />}
         {view.name === 'sequences' && <Sequences setView={setView} />}
         {view.name === 'editor' && <SequenceEditor sequenceId={view.id} setView={setView} />}
-        {view.name === 'history' && <History setView={setView} />}
+        {view.name === 'history' && <History setView={setView} expandHistoryId={view.expandHistoryId} />}
       </main>
       <BottomBar />
       {searchOpen && <SearchPalette close={() => setSearchOpen(false)} setView={setView} />}
