@@ -334,7 +334,7 @@ function BlockRow({ block, seqId, activeBlockId, setActiveBlockId, draggingId })
         <button
           {...sortable.attributes}
           {...sortable.listeners}
-          className="text-ink/35 hover:text-ink/70 cursor-grab active:cursor-grabbing"
+          className="text-ink/35 hover:text-ink/70 cursor-grab active:cursor-grabbing touch-none"
           onClick={(e) => e.stopPropagation()}
           title="Drag block"
         >
@@ -405,7 +405,7 @@ function ItemRow({ item, seqId, blockId }) {
       ref={sortable.setNodeRef}
       style={style}
       className={classNames(
-        'group bg-bg/40 hover:bg-sandsoft/40 rounded-xl2 border border-transparent hover:border-line',
+        'group bg-bg/40 hover:bg-sandsoft/40 rounded-xl2 border border-transparent hover:border-line select-none',
         sortable.isDragging ? 'opacity-0' : ''
       )}
     >
@@ -414,7 +414,7 @@ function ItemRow({ item, seqId, blockId }) {
         <button
           {...sortable.attributes}
           {...sortable.listeners}
-          className="text-ink/30 hover:text-ink/70 cursor-grab active:cursor-grabbing shrink-0"
+          className="text-ink/30 hover:text-ink/70 cursor-grab active:cursor-grabbing shrink-0 touch-none"
         >
           <GripVertical size={14} />
         </button>
@@ -513,14 +513,14 @@ function TextItemRow({ item, seqId, blockId }) {
       ref={sortable.setNodeRef}
       style={style}
       className={classNames(
-        'group flex items-start gap-2 bg-wheat/20 rounded-xl2 px-3 py-2 border border-wheat/50',
+        'group flex items-start gap-2 bg-wheat/20 rounded-xl2 px-3 py-2 border border-wheat/50 select-none',
         sortable.isDragging ? 'opacity-0' : ''
       )}
     >
       <button
         {...sortable.attributes}
         {...sortable.listeners}
-        className="text-ink/30 hover:text-ink/70 cursor-grab active:cursor-grabbing shrink-0 mt-0.5"
+        className="text-ink/30 hover:text-ink/70 cursor-grab active:cursor-grabbing shrink-0 mt-0.5 touch-none"
       >
         <GripVertical size={14} />
       </button>
