@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { useStore } from '../store.js';
-import { CATEGORIES } from '../seed.js';
+import { CATEGORIES, SIDES_OPTIONS } from '../seed.js';
 import {
   ArrowLeft, Plus, Save, Trash2, ChevronDown, ChevronUp, GripVertical, Search, X,
+  FileText, ChevronRight,
 } from 'lucide-react';
 import { classNames } from '../utils/file.js';
 import {
@@ -19,29 +20,75 @@ export default function SequenceEditor({ sequenceId, setView }) {
   const update = useStore((s) => s.updateSequence);
   const addBlock = useStore((s) => s.addBlockToSequence);
   const reorderBlocks = useStore((s) => s.reorderBlocks);
+  const reorderItems = useStore((s) => s.reorderItems);
+  const moveItemToBlock = useStore((s) => s.moveItemToBlock);
+
   const [activeBlockId, setActiveBlockId] = useState(null);
-  const [exModalOpen, setExModalOpen] = useState(false);
+  const [exModal, setExModal] = useState({ open: false, initialName: '' });
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   if (!seq) {
     return (
       <div className="text-center py-20 text-ink/50">
-        Sequence not found. <button className="underline" onClick={() => setView({ name: 'sequences' })}>Back</button>
+        Sequence not found.{' '}
+        <button className="underline" onClick={() => setView({ name: 'sequences' })}>
+          Back
+        </button>
       </div>
     );
   }
 
-  const onDragEnd = ({ active, over }) => {
-    if (!over || active.id === over.id) return;
-    const ids = seq.blocks.map((b) => b.id);
-    const oldIdx = ids.indexOf(active.id);
-    const newIdx = ids.indexOf(over.id);
-    if (oldIdx === -1 || newIdx === -1) return;
-    reorderBlocks(seq.id, arrayMove(ids, oldIdx, newIdx));
+  const handleAddBlock = (name) => {
+    const newId = addBlock(seq.id, name);
+    setActiveBlockId(newId);
   };
 
-  const totalExercises = seq.blocks.reduce((acc, b) => acc + b.items.length, 0);
+  // Single DndContext handles both block reorder and item move (including cross-block)
+  const handleDragEnd = ({ active, over }) => {
+    if (!over || active.id === over.id) return;
+    const activeId = active.id;
+    const overId = over.id;
+
+    const isActiveBlock = seq.blocks.some((b) => b.id === activeId);
+
+    if (isActiveBlock) {
+      // Resolve over target to a block id
+      const overBlockId =
+        seq.blocks.some((b) => b.id === overId)
+          ? overId
+          : seq.blocks.find((b) => b.items.some((i) => i.id === overId))?.id;
+      if (!overBlockId) return;
+      const ids = seq.blocks.map((b) => b.id);
+      const oldIdx = ids.indexOf(activeId);
+      const newIdx = ids.indexOf(overBlockId);
+      if (oldIdx !== -1 && newIdx !== -1) reorderBlocks(seq.id, arrayMove(ids, oldIdx, newIdx));
+      return;
+    }
+
+    // Dragging an item
+    const sourceBlock = seq.blocks.find((b) => b.items.some((i) => i.id === activeId));
+    if (!sourceBlock) return;
+
+    const isOverBlock = seq.blocks.some((b) => b.id === overId);
+    const targetBlockId = isOverBlock
+      ? overId
+      : seq.blocks.find((b) => b.items.some((i) => i.id === overId))?.id;
+    if (!targetBlockId) return;
+
+    if (sourceBlock.id === targetBlockId) {
+      if (!isOverBlock) {
+        const ids = sourceBlock.items.map((i) => i.id);
+        const oldIdx = ids.indexOf(activeId);
+        const newIdx = ids.indexOf(overId);
+        if (oldIdx !== -1 && newIdx !== -1) reorderItems(seq.id, sourceBlock.id, arrayMove(ids, oldIdx, newIdx));
+      }
+    } else {
+      moveItemToBlock(seq.id, sourceBlock.id, targetBlockId, activeId, isOverBlock ? null : overId);
+    }
+  };
+
+  const totalExercises = seq.blocks.reduce((acc, b) => acc + b.items.filter((i) => !i.type || i.type === 'exercise').length, 0);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
@@ -118,14 +165,14 @@ export default function SequenceEditor({ sequenceId, setView }) {
             <div className="empty-dashed py-16 flex flex-col items-center justify-center">
               <div className="text-ink/55">No blocks yet. Add your first block below.</div>
               <button
-                onClick={() => addBlock(seq.id, 'Main Block')}
+                onClick={() => handleAddBlock('Main Block')}
                 className="btn-outline mt-5"
               >
                 <Plus size={14} /> Add Block
               </button>
             </div>
           ) : (
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
               <SortableContext items={seq.blocks.map((b) => b.id)} strategy={verticalListSortingStrategy}>
                 <div className="space-y-5">
                   {seq.blocks.map((b) => (
@@ -144,7 +191,7 @@ export default function SequenceEditor({ sequenceId, setView }) {
 
           {seq.blocks.length > 0 && (
             <button
-              onClick={() => addBlock(seq.id, 'New Block')}
+              onClick={() => handleAddBlock('New Block')}
               className="btn-outline mt-5 w-full justify-center"
             >
               <Plus size={14} /> Add Block
@@ -164,10 +211,7 @@ export default function SequenceEditor({ sequenceId, setView }) {
         </div>
 
         <div className="mt-6 flex items-center gap-3">
-          <button
-            onClick={() => {/* save is implicit via store */ }}
-            className="btn-primary"
-          >
+          <button onClick={() => {}} className="btn-primary">
             <Save size={16} /> Save Sequence
           </button>
           <span className="text-xs text-ink/40">
@@ -181,7 +225,7 @@ export default function SequenceEditor({ sequenceId, setView }) {
           <div className="flex items-baseline justify-between">
             <h3 className="font-serif text-lg">Exercise Library</h3>
             <button
-              onClick={() => setExModalOpen(true)}
+              onClick={() => setExModal({ open: true, initialName: '' })}
               className="text-xs text-ink/60 hover:text-ink inline-flex items-center gap-1"
             >
               <Plus size={12} /> New
@@ -190,20 +234,21 @@ export default function SequenceEditor({ sequenceId, setView }) {
           <div className="text-xs text-ink/50 mt-1">
             {activeBlockId
               ? <>Adding to: <span className="text-ink">{seq.blocks.find((b) => b.id === activeBlockId)?.name}</span></>
-              : 'Add a block first'}
+              : 'Select a block first'}
           </div>
           <LibraryPicker
             seqId={seq.id}
             activeBlockId={activeBlockId}
-            onCreateInline={() => setExModalOpen(true)}
+            onCreateInline={(name) => setExModal({ open: true, initialName: name })}
           />
         </div>
       </aside>
 
-      {exModalOpen && (
+      {exModal.open && (
         <ExerciseModal
-          close={() => setExModalOpen(false)}
+          close={() => setExModal({ open: false, initialName: '' })}
           editing={null}
+          initialName={exModal.initialName}
           onCreated={(ex) => {
             if (activeBlockId) {
               useStore.getState().addItemToBlock(seq.id, activeBlockId, ex.id);
@@ -237,22 +282,14 @@ function Toggle({ checked, onChange }) {
 function BlockRow({ block, seqId, activeBlockId, setActiveBlockId }) {
   const updateBlock = useStore((s) => s.updateBlock);
   const deleteBlock = useStore((s) => s.deleteBlock);
-  const reorderItems = useStore((s) => s.reorderItems);
+  const addTextToBlock = useStore((s) => s.addTextToBlock);
   const [collapsed, setCollapsed] = useState(false);
   const isActive = activeBlockId === block.id;
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
   const sortable = useSortable({ id: block.id });
   const style = { transform: CSS.Transform.toString(sortable.transform), transition: sortable.transition };
 
-  const onItemsDragEnd = ({ active, over }) => {
-    if (!over || active.id === over.id) return;
-    const ids = block.items.map((i) => i.id);
-    const oldIdx = ids.indexOf(active.id);
-    const newIdx = ids.indexOf(over.id);
-    if (oldIdx === -1 || newIdx === -1) return;
-    reorderItems(seqId, block.id, arrayMove(ids, oldIdx, newIdx));
-  };
+  const exerciseCount = block.items.filter((i) => !i.type || i.type === 'exercise').length;
 
   return (
     <div
@@ -278,9 +315,9 @@ function BlockRow({ block, seqId, activeBlockId, setActiveBlockId }) {
           value={block.name}
           onChange={(e) => updateBlock(seqId, block.id, { name: e.target.value })}
           className="font-serif text-lg bg-transparent focus:outline-none flex-1"
-          onClick={(e) => e.stopPropagation()}
+          onClick={() => setActiveBlockId(block.id)}
         />
-        <span className="text-xs text-ink/50">{block.items.length} exercises</span>
+        <span className="text-xs text-ink/50">{exerciseCount} exercise{exerciseCount === 1 ? '' : 's'}</span>
         <button
           onClick={(e) => { e.stopPropagation(); setCollapsed((c) => !c); }}
           className="p-1.5 rounded-full hover:bg-sandsoft text-ink/55"
@@ -299,19 +336,27 @@ function BlockRow({ block, seqId, activeBlockId, setActiveBlockId }) {
         <div className="mt-4 ml-7" onClick={(e) => e.stopPropagation()}>
           {block.items.length === 0 ? (
             <div className="text-xs text-ink/40 italic py-3">
-              Empty block. Click an exercise from the library →
+              Empty block — click an exercise in the library, or add a note below.
             </div>
           ) : (
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onItemsDragEnd}>
-              <SortableContext items={block.items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-                <ul className="space-y-1.5">
-                  {block.items.map((it) => (
+            <SortableContext items={block.items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+              <ul className="space-y-1.5">
+                {block.items.map((it) =>
+                  it.type === 'text' ? (
+                    <TextItemRow key={it.id} item={it} seqId={seqId} blockId={block.id} />
+                  ) : (
                     <ItemRow key={it.id} item={it} seqId={seqId} blockId={block.id} />
-                  ))}
-                </ul>
-              </SortableContext>
-            </DndContext>
+                  )
+                )}
+              </ul>
+            </SortableContext>
           )}
+          <button
+            onClick={() => addTextToBlock(seqId, block.id)}
+            className="mt-3 text-xs text-ink/45 hover:text-ink inline-flex items-center gap-1.5 transition"
+          >
+            <FileText size={12} /> Add note
+          </button>
         </div>
       )}
     </div>
@@ -320,8 +365,114 @@ function BlockRow({ block, seqId, activeBlockId, setActiveBlockId }) {
 
 function ItemRow({ item, seqId, blockId }) {
   const exercise = useStore((s) => s.exercises.find((e) => e.id === item.exerciseId));
-  const update = useStore((s) => s.updateItem);
-  const remove = useStore((s) => s.removeItem);
+  const updateItem = useStore((s) => s.updateItem);
+  const removeItem = useStore((s) => s.removeItem);
+  const sortable = useSortable({ id: item.id });
+  const style = { transform: CSS.Transform.toString(sortable.transform), transition: sortable.transition };
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <li
+      ref={sortable.setNodeRef}
+      style={style}
+      className="group bg-bg/40 hover:bg-sandsoft/40 rounded-xl2 border border-transparent hover:border-line"
+    >
+      {/* Compact row */}
+      <div className="flex items-center gap-2 px-3 py-2">
+        <button
+          {...sortable.attributes}
+          {...sortable.listeners}
+          className="text-ink/30 hover:text-ink/70 cursor-grab active:cursor-grabbing shrink-0"
+        >
+          <GripVertical size={14} />
+        </button>
+        <div
+          className="flex-1 text-sm truncate cursor-pointer"
+          onClick={() => setExpanded((v) => !v)}
+        >
+          {exercise?.name || <span className="text-ink/40 italic">Removed exercise</span>}
+        </div>
+        <input
+          type="number"
+          min={1}
+          value={item.sets}
+          onChange={(e) => updateItem(seqId, blockId, item.id, { sets: Number(e.target.value || 1) })}
+          className="w-10 text-right text-xs bg-transparent focus:outline-none text-ink/60"
+          title="Sets"
+        />
+        <span className="text-xs text-ink/40">×</span>
+        <input
+          value={item.reps}
+          onChange={(e) => updateItem(seqId, blockId, item.id, { reps: e.target.value })}
+          className="w-20 text-xs bg-transparent focus:outline-none text-ink/60"
+          placeholder="reps"
+        />
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="text-ink/30 hover:text-ink/70 transition"
+          title="More details"
+        >
+          <ChevronRight size={13} className={classNames('transition', expanded ? 'rotate-90' : '')} />
+        </button>
+        <button
+          onClick={() => removeItem(seqId, blockId, item.id)}
+          className="opacity-0 group-hover:opacity-100 text-ink/40 hover:text-mauve-ink"
+        >
+          <X size={14} />
+        </button>
+      </div>
+
+      {/* Expanded detail panel */}
+      {expanded && (
+        <div className="px-9 pb-3 space-y-2.5 border-t border-line/50 pt-2.5">
+          {/* Side */}
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] text-ink/45 w-16">Side</span>
+            <div className="flex flex-wrap gap-1">
+              {SIDES_OPTIONS.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => updateItem(seqId, blockId, item.id, { side: item.side === s ? '' : s })}
+                  className={classNames(
+                    'px-2 py-0.5 rounded-full text-[11px] border transition',
+                    item.side === s ? 'bg-ink text-bg border-ink' : 'border-line text-ink/55 hover:bg-sandsoft'
+                  )}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Variation */}
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] text-ink/45 w-16">Variation</span>
+            <input
+              value={item.variation || ''}
+              onChange={(e) => updateItem(seqId, blockId, item.id, { variation: e.target.value })}
+              placeholder="e.g. with rotation"
+              className="flex-1 text-xs bg-transparent focus:outline-none border-b border-line/60 focus:border-ink/30 pb-0.5"
+            />
+          </div>
+          {/* Note */}
+          <div className="flex items-start gap-3">
+            <span className="text-[11px] text-ink/45 w-16 pt-0.5">Note</span>
+            <textarea
+              value={item.note || ''}
+              onChange={(e) => updateItem(seqId, blockId, item.id, { note: e.target.value })}
+              placeholder="Cue, modification..."
+              rows={2}
+              className="flex-1 text-xs bg-transparent focus:outline-none resize-none border-b border-line/60 focus:border-ink/30"
+            />
+          </div>
+        </div>
+      )}
+    </li>
+  );
+}
+
+function TextItemRow({ item, seqId, blockId }) {
+  const updateItem = useStore((s) => s.updateItem);
+  const removeItem = useStore((s) => s.removeItem);
   const sortable = useSortable({ id: item.id });
   const style = { transform: CSS.Transform.toString(sortable.transform), transition: sortable.transition };
 
@@ -329,33 +480,26 @@ function ItemRow({ item, seqId, blockId }) {
     <li
       ref={sortable.setNodeRef}
       style={style}
-      className="group flex items-center gap-2 bg-bg/40 hover:bg-sandsoft/40 rounded-xl2 px-3 py-2 border border-transparent hover:border-line"
+      className="group flex items-start gap-2 bg-wheat/20 rounded-xl2 px-3 py-2 border border-wheat/50"
     >
       <button
         {...sortable.attributes}
         {...sortable.listeners}
-        className="text-ink/30 hover:text-ink/70 cursor-grab active:cursor-grabbing"
+        className="text-ink/30 hover:text-ink/70 cursor-grab active:cursor-grabbing shrink-0 mt-0.5"
       >
         <GripVertical size={14} />
       </button>
-      <div className="flex-1 text-sm truncate">{exercise?.name || 'Removed exercise'}</div>
-      <input
-        type="number"
-        min={1}
-        value={item.sets}
-        onChange={(e) => update(seqId, blockId, item.id, { sets: Number(e.target.value || 1) })}
-        className="w-10 text-right text-xs bg-transparent focus:outline-none text-ink/60"
-      />
-      <span className="text-xs text-ink/40">×</span>
-      <input
-        value={item.reps}
-        onChange={(e) => update(seqId, blockId, item.id, { reps: e.target.value })}
-        className="w-20 text-xs bg-transparent focus:outline-none text-ink/60"
-        placeholder="reps"
+      <FileText size={13} className="text-ink/35 shrink-0 mt-0.5" />
+      <textarea
+        value={item.content || ''}
+        onChange={(e) => updateItem(seqId, blockId, item.id, { content: e.target.value })}
+        placeholder="Transition, cue, or note..."
+        rows={2}
+        className="flex-1 text-sm bg-transparent focus:outline-none resize-none placeholder:text-ink/35"
       />
       <button
-        onClick={() => remove(seqId, blockId, item.id)}
-        className="opacity-0 group-hover:opacity-100 text-ink/40 hover:text-mauve-ink"
+        onClick={() => removeItem(seqId, blockId, item.id)}
+        className="opacity-0 group-hover:opacity-100 text-ink/40 hover:text-mauve-ink shrink-0 mt-0.5"
       >
         <X size={14} />
       </button>
@@ -371,7 +515,8 @@ function LibraryPicker({ seqId, activeBlockId, onCreateInline }) {
 
   const filtered = useMemo(() => {
     return exercises.filter((e) => {
-      if (cat !== 'All' && e.category !== cat) return false;
+      const cats = Array.isArray(e.category) ? e.category : [e.category];
+      if (cat !== 'All' && !cats.includes(cat)) return false;
       if (q) {
         const term = q.toLowerCase();
         if (!`${e.name} ${(e.tags || []).join(' ')} ${e.position}`.toLowerCase().includes(term)) return false;
@@ -385,7 +530,8 @@ function LibraryPicker({ seqId, activeBlockId, onCreateInline }) {
     addItem(seqId, activeBlockId, id);
   };
 
-  const showCreateInline = q.trim().length > 0 &&
+  const showCreateInline =
+    q.trim().length > 0 &&
     !filtered.some((e) => e.name.toLowerCase() === q.trim().toLowerCase());
 
   return (
@@ -415,7 +561,7 @@ function LibraryPicker({ seqId, activeBlockId, onCreateInline }) {
       </div>
       {showCreateInline && (
         <button
-          onClick={onCreateInline}
+          onClick={() => onCreateInline(q.trim())}
           className="w-full text-left mt-3 px-3 py-2 rounded-xl2 bg-sage/40 border border-sage hover:bg-sage transition text-sm"
         >
           <span className="text-sage-ink font-medium">+ Create &amp; add</span>{' '}
@@ -423,28 +569,33 @@ function LibraryPicker({ seqId, activeBlockId, onCreateInline }) {
         </button>
       )}
       <div className="mt-3 max-h-[440px] overflow-y-auto pr-1 -mr-1 space-y-2">
-        {filtered.length === 0 && <div className="text-xs text-ink/40 italic">No matches.</div>}
-        {filtered.map((e) => (
-          <button
-            key={e.id}
-            onClick={() => onAdd(e.id)}
-            disabled={!activeBlockId}
-            className={classNames(
-              'w-full text-left px-3 py-2 rounded-xl2 border border-transparent hover:bg-sandsoft/50 hover:border-line transition',
-              !activeBlockId && 'opacity-50 cursor-not-allowed'
-            )}
-          >
-            <div className="text-sm">{e.name}</div>
-            <div className="text-[11px] text-ink/50 mt-0.5">
-              {e.category} · {e.position}
-            </div>
-            {(e.springs && e.springs !== '—') && (
-              <div className="text-[11px] text-ink/45 mt-1 inline-flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-blue-300/60 inline-block" /> {e.springs} · footbar: {e.footbar}
+        {filtered.length === 0 && !showCreateInline && (
+          <div className="text-xs text-ink/40 italic">No matches.</div>
+        )}
+        {filtered.map((e) => {
+          const cats = Array.isArray(e.category) ? e.category : [e.category];
+          return (
+            <button
+              key={e.id}
+              onClick={() => onAdd(e.id)}
+              disabled={!activeBlockId}
+              className={classNames(
+                'w-full text-left px-3 py-2 rounded-xl2 border border-transparent hover:bg-sandsoft/50 hover:border-line transition',
+                !activeBlockId && 'opacity-50 cursor-not-allowed'
+              )}
+            >
+              <div className="text-sm">{e.name}</div>
+              <div className="text-[11px] text-ink/50 mt-0.5">
+                {cats.join(', ')} · {e.position}
               </div>
-            )}
-          </button>
-        ))}
+              {e.springs && e.springs !== '—' && e.springs !== '' && (
+                <div className="text-[11px] text-ink/45 mt-1 inline-flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-blue-300/60 inline-block" /> {e.springs} · footbar: {e.footbar}
+                </div>
+              )}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

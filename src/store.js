@@ -3,6 +3,11 @@ import { seedExercises, seedSequences, seedHistory } from './seed.js';
 
 const uid = (prefix = 'id') => `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
 
+const normalizeCat = (cat) =>
+  Array.isArray(cat) ? cat : (cat && cat !== '' ? [cat] : []);
+
+const normalizeEx = (e) => ({ ...e, category: normalizeCat(e.category) });
+
 const emptyState = {
   sessionLoaded: false,
   sessionName: '',
@@ -17,7 +22,7 @@ const emptyState = {
 const seededState = () => ({
   sessionLoaded: true,
   sessionName: 'New Session',
-  exercises: seedExercises,
+  exercises: seedExercises.map(normalizeEx),
   blocksLibrary: [],
   sequences: seedSequences,
   history: seedHistory,
@@ -34,7 +39,7 @@ export const useStore = create((set, get) => ({
     set({
       sessionLoaded: true,
       sessionName: data.sessionName || 'Loaded Session',
-      exercises: data.exercises || [],
+      exercises: (data.exercises || []).map(normalizeEx),
       blocksLibrary: data.blocksLibrary || [],
       sequences: data.sequences || [],
       history: data.history || [],
@@ -65,12 +70,24 @@ export const useStore = create((set, get) => ({
 
   // Exercises
   addExercise: (ex) => {
-    const newEx = { id: uid('e'), tags: [], notes: '', springs: '—', footbar: '—', ...ex };
+    const newEx = {
+      id: uid('e'),
+      tags: [],
+      notes: '',
+      springs: '',
+      footbar: '—',
+      ...ex,
+      category: normalizeCat(ex.category),
+    };
     set((s) => ({ exercises: [...s.exercises, newEx] }));
     return newEx;
   },
   updateExercise: (id, patch) =>
-    set((s) => ({ exercises: s.exercises.map((e) => (e.id === id ? { ...e, ...patch } : e)) })),
+    set((s) => ({
+      exercises: s.exercises.map((e) =>
+        e.id === id ? { ...e, ...patch, category: normalizeCat(patch.category ?? e.category) } : e
+      ),
+    })),
   deleteExercise: (id) =>
     set((s) => ({ exercises: s.exercises.filter((e) => e.id !== id) })),
 
@@ -80,6 +97,8 @@ export const useStore = create((set, get) => ({
     set((s) => ({ blocksLibrary: [...s.blocksLibrary, nb] }));
     return nb;
   },
+  updateSavedBlock: (id, patch) =>
+    set((s) => ({ blocksLibrary: s.blocksLibrary.map((b) => (b.id === id ? { ...b, ...patch } : b)) })),
   deleteSavedBlock: (id) =>
     set((s) => ({ blocksLibrary: s.blocksLibrary.filter((b) => b.id !== id) })),
 
@@ -120,7 +139,10 @@ export const useStore = create((set, get) => ({
       blocks: orig.blocks.map((b) => ({
         ...b,
         id: uid('b'),
-        items: b.items.map((it) => ({ ...it, id: uid('i') })),
+        items: b.items.map((it) => ({
+          ...it,
+          id: uid(it.type === 'text' ? 'n' : 'i'),
+        })),
       })),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -130,18 +152,21 @@ export const useStore = create((set, get) => ({
   },
 
   // Block ops within a sequence
-  addBlockToSequence: (seqId, name = 'New Block') =>
+  addBlockToSequence: (seqId, name = 'New Block') => {
+    const blockId = uid('b');
     set((s) => ({
       sequences: s.sequences.map((q) =>
         q.id === seqId
           ? {
               ...q,
-              blocks: [...q.blocks, { id: uid('b'), name, items: [] }],
+              blocks: [...q.blocks, { id: blockId, name, items: [] }],
               updatedAt: new Date().toISOString(),
             }
           : q
       ),
-    })),
+    }));
+    return blockId;
+  },
   updateBlock: (seqId, blockId, patch) =>
     set((s) => ({
       sequences: s.sequences.map((q) =>
@@ -180,7 +205,13 @@ export const useStore = create((set, get) => ({
               ...q,
               blocks: q.blocks.map((b) =>
                 b.id === blockId
-                  ? { ...b, items: [...b.items, { id: uid('i'), exerciseId, sets: 1, reps: '8' }] }
+                  ? {
+                      ...b,
+                      items: [
+                        ...b.items,
+                        { id: uid('i'), type: 'exercise', exerciseId, sets: 1, reps: '8', side: '', variation: '', note: '' },
+                      ],
+                    }
                   : b
               ),
               updatedAt: new Date().toISOString(),
@@ -188,6 +219,27 @@ export const useStore = create((set, get) => ({
           : q
       ),
     })),
+
+  addTextToBlock: (seqId, blockId) => {
+    const id = uid('n');
+    set((s) => ({
+      sequences: s.sequences.map((q) =>
+        q.id === seqId
+          ? {
+              ...q,
+              blocks: q.blocks.map((b) =>
+                b.id === blockId
+                  ? { ...b, items: [...b.items, { id, type: 'text', content: '' }] }
+                  : b
+              ),
+              updatedAt: new Date().toISOString(),
+            }
+          : q
+      ),
+    }));
+    return id;
+  },
+
   removeItem: (seqId, blockId, itemId) =>
     set((s) => ({
       sequences: s.sequences.map((q) =>
@@ -228,6 +280,30 @@ export const useStore = create((set, get) => ({
             if (b.id !== blockId) return b;
             const map = new Map(b.items.map((i) => [i.id, i]));
             return { ...b, items: ids.map((id) => map.get(id)).filter(Boolean) };
+          }),
+          updatedAt: new Date().toISOString(),
+        };
+      }),
+    })),
+  moveItemToBlock: (seqId, fromBlockId, toBlockId, itemId, targetItemId) =>
+    set((s) => ({
+      sequences: s.sequences.map((q) => {
+        if (q.id !== seqId) return q;
+        const fromBlock = q.blocks.find((b) => b.id === fromBlockId);
+        const item = fromBlock?.items.find((i) => i.id === itemId);
+        if (!item) return q;
+        return {
+          ...q,
+          blocks: q.blocks.map((b) => {
+            if (b.id === fromBlockId) return { ...b, items: b.items.filter((i) => i.id !== itemId) };
+            if (b.id === toBlockId) {
+              if (!targetItemId) return { ...b, items: [...b.items, item] };
+              const idx = b.items.findIndex((i) => i.id === targetItemId);
+              const newItems = [...b.items];
+              newItems.splice(idx === -1 ? newItems.length : idx, 0, item);
+              return { ...b, items: newItems };
+            }
+            return b;
           }),
           updatedAt: new Date().toISOString(),
         };

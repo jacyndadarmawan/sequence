@@ -1,27 +1,60 @@
 import React, { useState } from 'react';
 import { useStore } from '../store.js';
-import { Plus, Trash2, X } from 'lucide-react';
+import { Plus, Trash2, Pencil, X } from 'lucide-react';
 
 export default function BlocksTab() {
   const blocks = useStore((s) => s.blocksLibrary);
   const exercises = useStore((s) => s.exercises);
   const addSavedBlock = useStore((s) => s.addSavedBlock);
+  const updateSavedBlock = useStore((s) => s.updateSavedBlock);
   const deleteSavedBlock = useStore((s) => s.deleteSavedBlock);
+
   const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [name, setName] = useState('');
   const [pickedIds, setPickedIds] = useState([]);
 
   const exerciseById = (id) => exercises.find((e) => e.id === id);
 
-  const submitNewBlock = () => {
-    if (!name.trim()) return;
-    addSavedBlock({
-      name: name.trim(),
-      items: pickedIds.map((id) => ({ id: `i_${Math.random().toString(36).slice(2, 8)}`, exerciseId: id, sets: 1, reps: '8' })),
-    });
+  const openAdd = () => {
+    setEditingId(null);
     setName('');
     setPickedIds([]);
+    setAdding(true);
+  };
+
+  const openEdit = (block) => {
+    setEditingId(block.id);
+    setName(block.name);
+    setPickedIds(block.items.map((i) => i.exerciseId).filter(Boolean));
+    setAdding(true);
+  };
+
+  const cancelForm = () => {
     setAdding(false);
+    setEditingId(null);
+    setName('');
+    setPickedIds([]);
+  };
+
+  const submitForm = () => {
+    if (!name.trim()) return;
+    const items = pickedIds.map((id) => ({
+      id: `i_${Math.random().toString(36).slice(2, 8)}`,
+      type: 'exercise',
+      exerciseId: id,
+      sets: 1,
+      reps: '8',
+      side: '',
+      variation: '',
+      note: '',
+    }));
+    if (editingId) {
+      updateSavedBlock(editingId, { name: name.trim(), items });
+    } else {
+      addSavedBlock({ name: name.trim(), items });
+    }
+    cancelForm();
   };
 
   return (
@@ -30,7 +63,7 @@ export default function BlocksTab() {
         <p className="text-sm text-ink/55">
           {blocks.length} saved {blocks.length === 1 ? 'block' : 'blocks'}
         </p>
-        <button onClick={() => setAdding(true)} className="btn-primary">
+        <button onClick={openAdd} className="btn-primary">
           <Plus size={16} /> Add Block
         </button>
       </div>
@@ -38,7 +71,7 @@ export default function BlocksTab() {
       {blocks.length === 0 && !adding && (
         <div className="empty-dashed py-20 text-center text-ink/55 mt-6">
           <div className="text-base">No saved blocks yet.</div>
-          <button onClick={() => setAdding(true)} className="mt-3 underline text-ink hover:text-ink">
+          <button onClick={openAdd} className="mt-3 underline text-ink hover:text-ink">
             Save your first block →
           </button>
         </div>
@@ -46,6 +79,12 @@ export default function BlocksTab() {
 
       {adding && (
         <div className="card p-6 mt-6 space-y-5">
+          <div className="flex items-center justify-between">
+            <h3 className="font-serif text-xl">{editingId ? 'Edit Block' : 'New Block'}</h3>
+            <button onClick={cancelForm} className="p-1.5 rounded-full hover:bg-sandsoft text-ink/60">
+              <X size={16} />
+            </button>
+          </div>
           <input
             autoFocus
             placeholder="Block name (e.g. Core Block)"
@@ -69,18 +108,18 @@ export default function BlocksTab() {
                     }`}
                   >
                     <div className="text-sm">{e.name}</div>
-                    <div className="text-[11px] text-ink/50">{e.category} · {e.position}</div>
+                    <div className="text-[11px] text-ink/50">
+                      {(Array.isArray(e.category) ? e.category : [e.category]).join(', ')} · {e.position}
+                    </div>
                   </button>
                 );
               })}
             </div>
           </div>
           <div className="flex justify-end gap-2">
-            <button onClick={() => { setAdding(false); setName(''); setPickedIds([]); }} className="btn-ghost">
-              Cancel
-            </button>
-            <button onClick={submitNewBlock} disabled={!name.trim()} className="btn-primary">
-              Save block
+            <button onClick={cancelForm} className="btn-ghost">Cancel</button>
+            <button onClick={submitForm} disabled={!name.trim()} className="btn-primary">
+              {editingId ? 'Save changes' : 'Save block'}
             </button>
           </div>
         </div>
@@ -92,12 +131,22 @@ export default function BlocksTab() {
             <div key={b.id} className="card p-5 group relative">
               <div className="flex items-start justify-between">
                 <div className="font-serif text-lg">{b.name}</div>
-                <button
-                  onClick={() => deleteSavedBlock(b.id)}
-                  className="opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-mauve/40 transition"
-                >
-                  <Trash2 size={12} />
-                </button>
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                  <button
+                    onClick={() => openEdit(b)}
+                    className="p-1.5 rounded-full hover:bg-sandsoft"
+                    title="Edit block"
+                  >
+                    <Pencil size={12} />
+                  </button>
+                  <button
+                    onClick={() => deleteSavedBlock(b.id)}
+                    className="p-1.5 rounded-full hover:bg-mauve/40"
+                    title="Delete block"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
               </div>
               <div className="text-xs text-ink/50 mt-1">
                 {b.items.length} exercise{b.items.length === 1 ? '' : 's'}

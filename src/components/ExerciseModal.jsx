@@ -1,26 +1,42 @@
 import React, { useEffect, useState } from 'react';
 import { useStore } from '../store.js';
-import { CATEGORIES, POSITIONS, DIFFICULTIES, EQUIPMENT, SPRING_OPTIONS, FOOTBAR_OPTIONS } from '../seed.js';
+import { CATEGORIES, POSITIONS, DIFFICULTIES, EQUIPMENT, FOOTBAR_OPTIONS } from '../seed.js';
 import { X } from 'lucide-react';
 import { classNames } from '../utils/file.js';
 
 const blank = {
   name: '',
-  category: '',
+  category: [],
   position: '',
   difficulty: '',
   equipment: '',
   purpose: '',
   tags: [],
   notes: '',
-  springs: '—',
+  springs: '',
   footbar: '—',
 };
 
-export default function ExerciseModal({ close, editing, onCreated }) {
+export default function ExerciseModal({ close, editing, onCreated, initialName }) {
   const addExercise = useStore((s) => s.addExercise);
   const updateExercise = useStore((s) => s.updateExercise);
-  const [form, setForm] = useState(editing ? { ...blank, ...editing } : blank);
+
+  const initForm = () => {
+    if (editing) {
+      return {
+        ...blank,
+        ...editing,
+        category: Array.isArray(editing.category)
+          ? editing.category
+          : editing.category
+          ? [editing.category]
+          : [],
+      };
+    }
+    return { ...blank, name: initialName || '' };
+  };
+
+  const [form, setForm] = useState(initForm);
   const [tagInput, setTagInput] = useState('');
 
   useEffect(() => {
@@ -30,6 +46,11 @@ export default function ExerciseModal({ close, editing, onCreated }) {
   }, [close]);
 
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
+
+  const toggleCategory = (cat) => {
+    const cats = form.category;
+    set({ category: cats.includes(cat) ? cats.filter((c) => c !== cat) : [...cats, cat] });
+  };
 
   const addTag = () => {
     const t = tagInput.trim().replace(/^#/, '');
@@ -72,7 +93,22 @@ export default function ExerciseModal({ close, editing, onCreated }) {
             />
           </Field>
 
-          <PillField label="Category" options={CATEGORIES} value={form.category} onChange={(v) => set({ category: v })} />
+          {/* Category — multi-select */}
+          <div>
+            <div className="label mb-3">Category</div>
+            <div className="flex flex-wrap gap-2">
+              {CATEGORIES.map((opt) => (
+                <button
+                  key={opt}
+                  onClick={() => toggleCategory(opt)}
+                  className={classNames('chip', form.category.includes(opt) ? 'chip-active' : '')}
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <PillField label="Position" options={POSITIONS} value={form.position} onChange={(v) => set({ position: v })} />
           <PillField label="Difficulty" options={DIFFICULTIES} value={form.difficulty} onChange={(v) => set({ difficulty: v })} />
           <PillField label="Equipment" options={EQUIPMENT} value={form.equipment} onChange={(v) => set({ equipment: v })} />
@@ -117,15 +153,12 @@ export default function ExerciseModal({ close, editing, onCreated }) {
 
           <div className="grid grid-cols-2 gap-5">
             <Field label="Springs">
-              <select
+              <input
                 value={form.springs}
                 onChange={(e) => set({ springs: e.target.value })}
+                placeholder="e.g. 1 blue 1 white"
                 className="input"
-              >
-                {SPRING_OPTIONS.map((s) => (
-                  <option key={s}>{s}</option>
-                ))}
-              </select>
+              />
             </Field>
             <Field label="Footbar">
               <select
