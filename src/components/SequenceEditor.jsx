@@ -287,7 +287,7 @@ function BlockRow({ block, seqId, activeBlockId, setActiveBlockId }) {
   const isActive = activeBlockId === block.id;
 
   const sortable = useSortable({ id: block.id });
-  const style = { transform: CSS.Transform.toString(sortable.transform), transition: sortable.transition };
+  const style = { transform: CSS.Translate.toString(sortable.transform), transition: sortable.transition };
 
   const exerciseCount = block.items.filter((i) => !i.type || i.type === 'exercise').length;
 
@@ -368,7 +368,7 @@ function ItemRow({ item, seqId, blockId }) {
   const updateItem = useStore((s) => s.updateItem);
   const removeItem = useStore((s) => s.removeItem);
   const sortable = useSortable({ id: item.id });
-  const style = { transform: CSS.Transform.toString(sortable.transform), transition: sortable.transition };
+  const style = { transform: CSS.Translate.toString(sortable.transform), transition: sortable.transition };
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -474,7 +474,7 @@ function TextItemRow({ item, seqId, blockId }) {
   const updateItem = useStore((s) => s.updateItem);
   const removeItem = useStore((s) => s.removeItem);
   const sortable = useSortable({ id: item.id });
-  const style = { transform: CSS.Transform.toString(sortable.transform), transition: sortable.transition };
+  const style = { transform: CSS.Translate.toString(sortable.transform), transition: sortable.transition };
 
   return (
     <li
