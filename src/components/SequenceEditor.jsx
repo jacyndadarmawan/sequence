@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { classNames } from '../utils/file.js';
 import {
-  DndContext, DragOverlay, PointerSensor, useSensor, useSensors, closestCenter,
+  DndContext, DragOverlay, PointerSensor, TouchSensor, useSensor, useSensors, closestCenter,
 } from '@dnd-kit/core';
 import {
   SortableContext, useSortable, arrayMove, verticalListSortingStrategy,
@@ -28,7 +28,10 @@ export default function SequenceEditor({ sequenceId, setView }) {
   const [exModal, setExModal] = useState({ open: false, initialName: '' });
   const [draggingId, setDraggingId] = useState(null);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+  );
 
   if (!seq) {
     return (
